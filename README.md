@@ -46,6 +46,7 @@ This project is static and can be deployed easily to:
 
 ---
 ## Folder
+```
 watermark-tools/
 ├── assets/
 │   ├── logo.png           <-- Default logo
@@ -59,6 +60,7 @@ watermark-tools/
 ├── index.html
 ├── package.json
 └── README.md
+```
 
 ---
 ## Author
