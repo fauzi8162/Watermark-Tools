@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Watermark Tool Pro</title>
+    <link href="css/output.css" rel="stylesheet">
+    <script src="js/fabric.min.js"></script>
+    <style>
+		/* Biarkan Fabric.js yang mengatur dimensi, kita hanya perlu menengahkannya */
+		.canvas-container { 
+			margin: 0 auto !important; 
+			touch-action: none;
+		}
+		/* Pastikan border radius tetap ada pada kanvas internal */
+		.canvas-container canvas { 
+			border-radius: 0.75rem;
+		}
+	</style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 min-h-screen transition-colors duration-300">
+
+    <div class="max-w-md mx-auto p-4 pb-10 space-y-4">
+        <header class="flex justify-between items-center">
+            <div class="flex flex-col">
+			  <h1 class="text-md font-bold tracking-tight leading-none">Watermark Tool</h1>
+			  <a href="https://www.instagram.com/riozi_25" target="_blank" class="inline-block hover:opacity-75 transition-opacity mt-1">
+				<p class="text-[8px] uppercase text-slate-500 font-bold tracking-widest leading-none">Toko IKLIMAH</p>
+			  </a>
+			</div>
+            <button id="dark-toggle" class="p-1 bg-white dark:bg-slate-800 rounded-full shadow-md border border-slate-200 dark:border-slate-700">
+                <span id="dark-icon" class="text-md">🌙</span>
+            </button>
+        </header>
+
+        <div id="wrapper" class="relative bg-slate-200 dark:bg-slate-800 rounded-2xl overflow-hidden border-2 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center min-h-[250px] cursor-pointer">
+            <div id="empty-state" class="absolute text-center p-6">
+                <p class="text-slate-400 text-sm italic">Upload foto untuk memulai</p>
+            </div>
+            <canvas id="c"></canvas>
+        </div>
+
+		<button id="download" disabled class="w-full py-3 bg-green-600 text-white font-bold rounded-xl shadow-lg opacity-40 cursor-not-allowed transition-all">
+                Download Hasil
+        </button>
+			
+        <div class="grid grid-cols-3 gap-2">
+            <label class="flex flex-col items-center justify-center p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl cursor-pointer transition shadow-md text-center">
+                <span class="text-[9px] font-bold uppercase">1. Pilih Foto</span>
+                <input type="file" id="upload-photo" accept="image/*" class="hidden">
+            </label>
+            <label class="flex flex-col items-center justify-center p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl cursor-pointer transition shadow-sm text-center">
+                <span class="text-[9px] font-bold uppercase">2. Upload Logo</span>
+                <input type="file" id="upload-watermark" accept="image/*" class="hidden">
+            </label>
+            <button onclick="openLogoModal()" class="flex flex-col items-center justify-center p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-xl cursor-pointer transition shadow-sm text-center focus:outline-none">
+                <span class="text-[9px] font-bold uppercase">3. Pilih Logo</span>
+            </button>
+        </div>
+
+        <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl shadow-sm space-y-6 border border-slate-100 dark:border-slate-700">
+            <div class="space-y-4">
+                <div class="flex gap-4">
+                    <div class="flex-1 space-y-1">
+                        <label class="text-[10px] font-bold dark:text-slate-300 uppercase">Ukuran</label>
+                        <input type="range" id="slider-size" min="0.05" max="1" step="0.01" value="0.2" class="w-full h-1.5 bg-slate-100 dark:bg-slate-700 rounded-lg appearance-none accent-blue-600">
+                    </div>
+                    <div class="flex-1 space-y-1">
+                        <label class="text-[10px] font-bold dark:text-slate-300 uppercase">Opacity</label>
+                        <input type="range" id="slider-opacity" min="0" max="1" step="0.01" value="1" class="w-full h-1.5 bg-slate-100 dark:bg-slate-700 rounded-lg appearance-none accent-blue-600">
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+				<!--RESET TRANSFORM--!>
+				<div class="flex justify-between items-center">
+                    <p class="text-[10px] font-bold dark:text-slate-300 uppercase tracking-wider">RESET</p>
+                </div>
+                
+                <div class="grid grid-cols-3 gap-2 pb-2">
+                    <button onclick="resetSize()" class="text-[9px] py-1.5 bg-slate-100 dark:bg-slate-700 dark:text-slate-300 font-bold uppercase rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition shadow-sm">Ukuran</button>
+                    <button onclick="resetRotation()" class="text-[9px] py-1.5 bg-slate-100 dark:bg-slate-700 dark:text-slate-300 font-bold uppercase rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition shadow-sm">Rotasi</button>
+                    <button onclick="resetPos()" class="text-[9px] py-1.5 bg-slate-100 dark:bg-slate-700 dark:text-slate-300 font-bold uppercase rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition shadow-sm">Tengah</button>
+                </div>
+				
+				<!--SETTINGS TRANSFORM--!>
+				<div class="w-full">
+					<button onclick="toggleTransform()" class="w-full flex justify-between items-center focus:outline-none mb-3 group">
+						<p class="text-[10px] font-bold dark:text-slate-300 uppercase tracking-wider group-hover:text-blue-500 transition-colors">Config Transform</p>
+						<svg id="transform-chevron" class="w-4 h-4 text-slate-400 transition-transform duration-300 -rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+						</svg>
+					</button>
+					
+					<div id="transform-wrapper" class="hidden">
+						<div class="flex gap-4 pb-2">
+							<label class="flex items-center gap-1.5 cursor-pointer">
+								<input type="checkbox" id="chk-corner" checked onchange="updateControls()" class="w-3.5 h-3.5 accent-blue-600 rounded cursor-pointer bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-600">
+								<span class="text-[9px] font-bold uppercase dark:text-slate-300">Corner</span>
+							</label>
+							<label class="flex items-center gap-1.5 cursor-pointer">
+								<input type="checkbox" id="chk-side" onchange="updateControls()" class="w-3.5 h-3.5 accent-blue-600 rounded cursor-pointer bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-600">
+								<span class="text-[9px] font-bold uppercase dark:text-slate-300">Side</span>
+							</label>
+							<label class="flex items-center gap-1.5 cursor-pointer">
+								<input type="checkbox" id="chk-rotate" onchange="updateControls()" class="w-3.5 h-3.5 accent-blue-600 rounded cursor-pointer bg-slate-100 dark:bg-slate-700 border-slate-300 dark:border-slate-600">
+								<span class="text-[9px] font-bold uppercase dark:text-slate-300">Rotation</span>
+							</label>
+						</div>
+					</div>
+				</div>
+                
+				
+				<!--ANALOG--!>
+                <div class="w-full">
+					<button onclick="toggleAnalog()" class="w-full flex justify-between items-center focus:outline-none mb-3 group">
+						<p class="text-[10px] font-bold dark:text-slate-300 uppercase tracking-wider group-hover:text-blue-500 transition-colors">Analog Control</p>
+						
+						<svg id="analog-chevron" class="w-4 h-4 text-slate-400 transition-transform duration-300 -rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+						</svg>
+					</button>
+					
+					<div id="analog-wrapper" class="hidden">
+						<div id="joystick-base" class="relative w-36 h-36 mx-auto bg-slate-200 dark:bg-slate-800 rounded-full shadow-inner border-2 border-slate-300 dark:border-slate-700 touch-none select-none flex items-center justify-center">
+							<div class="absolute w-full h-[1px] bg-slate-300/50 dark:bg-slate-600/50 pointer-events-none"></div>
+							<div class="absolute h-full w-[1px] bg-slate-300/50 dark:bg-slate-600/50 pointer-events-none"></div>
+							
+							<div id="joystick-knob" class="w-14 h-14 bg-blue-500 rounded-full shadow-lg border-2 border-blue-400 dark:border-blue-300 cursor-grab active:cursor-grabbing z-10"></div>
+						</div>
+					</div>
+				</div>
+				<!--ANALOG--!>
+            </div>
+
+            
+        </div>
+    </div>
+
+
+	<div id="logo-modal" class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-sm overflow-hidden border border-slate-200 dark:border-slate-700">
+            <div class="p-4 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                <h3 class="font-bold text-sm uppercase tracking-wider">Pilih Logo</h3>
+                <button onclick="closeLogoModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-bold text-xl leading-none">&times;</button>
+            </div>
+            <div class="p-4 grid grid-cols-2 gap-4 max-h-72 overflow-y-auto" id="logo-grid">
+                </div>
+        </div>
+    </div>
+	
+    <script>
+        const canvas = new fabric.Canvas('c');
+        let watermarkImg = null;
+        let originalWidth, originalHeight;
+
+        // Dark Mode
+        document.getElementById('dark-toggle').onclick = () => {
+            document.documentElement.classList.toggle('dark');
+        };
+
+        // Responsiveness & Upload Foto
+        document.getElementById('upload-photo').onchange = function(e) {
+            if(!e.target.files[0]) return;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const imgObj = new Image();
+                imgObj.src = event.target.result;
+                imgObj.onload = function() {
+					originalWidth = imgObj.width;
+					originalHeight = imgObj.height;
+
+					// Hitung skala agar fit di layar device
+					const wrapper = document.getElementById('wrapper');
+					// Kurangi sedikit width (misal 4px) untuk kompensasi border dari wrapper
+					const containerWidth = wrapper.clientWidth - 4; 
+					const scaleFactor = containerWidth / originalWidth;
+
+					canvas.setWidth(originalWidth * scaleFactor);
+					canvas.setHeight(originalHeight * scaleFactor);
+					canvas.setZoom(scaleFactor); 
+
+					const fabricImg = new fabric.Image(imgObj);
+					canvas.setBackgroundImage(fabricImg, canvas.renderAll.bind(canvas));
+					
+					document.getElementById('download').disabled = false;
+					document.getElementById('download').classList.remove('opacity-40', 'cursor-not-allowed');
+					document.getElementById('empty-state').classList.add('hidden');
+
+					// Agar wrapper mengikuti tinggi canvas persis
+					wrapper.classList.remove('min-h-[250px]', 'items-center', 'justify-center', 'cursor-pointer');
+					// ---------------------------
+					
+					if (!watermarkImg) loadWatermark('assets/logo.png');
+				};
+            };
+            reader.readAsDataURL(e.target.files[0]);
+        };
+		
+		// Membuat wrapper berfungsi sebagai tombol upload foto
+		document.getElementById('wrapper').onclick = function(e) {
+			// Cek apakah tulisan "Upload foto untuk memulai" masih ada (belum di-hidden)
+			const emptyState = document.getElementById('empty-state');
+			if (!emptyState.classList.contains('hidden')) {
+				document.getElementById('upload-photo').click();
+			}
+		};
+		
+		// Mengganti Watermark / Logo
+		document.getElementById('upload-watermark').onchange = function(e) {
+			if (!e.target.files[0]) return; // Batal jika tidak ada file yang dipilih
+			
+			const reader = new FileReader();
+			reader.onload = function(event) {
+				// Panggil fungsi loadWatermark yang sudah ada menggunakan URL file baru
+				loadWatermark(event.target.result);
+			};
+			reader.readAsDataURL(e.target.files[0]);
+			
+			// Reset value input file agar logo yang sama bisa diupload ulang jika perlu
+			e.target.value = ''; 
+		};
+
+        function loadWatermark(src) {
+            if (watermarkImg) canvas.remove(watermarkImg);
+            fabric.Image.fromURL(src, function(img) {
+                watermarkImg = img;
+                img.set({
+                    left: originalWidth / 2,
+                    top: originalHeight / 2,
+                    originX: 'center',
+                    originY: 'center'
+                });
+                img.scaleToWidth(originalWidth * 0.2);
+				
+				updateControls();
+                canvas.add(img);
+                canvas.setActiveObject(img);
+                canvas.renderAll();
+            });
+        }
+
+        // Analog Logic manual
+		const base = document.getElementById('joystick-base');
+		const knob = document.getElementById('joystick-knob');
+
+		let isDragging = false;
+		let analogX = 0; // Nilai -1 sampai 1
+		let analogY = 0; // Nilai -1 sampai 1
+		let analogAnim = null;
+
+		// Hitung batas maksimal tarikan knob agar tidak keluar lingkaran
+		const maxRadius = 72 - 28; // (Lebar base 144 / 2) - (Lebar knob 56 / 2)
+
+		function analogStep() {
+			// Selama masih ditahan/drag, loop animasi harus terus berjalan
+			if (isDragging) {
+				// Hanya pindahkan koordinat jika watermark ada & joystick sedang digeser
+				if (watermarkImg && (analogX !== 0 || analogY !== 0)) {
+					const speed = originalWidth * 0.008; 
+					
+					watermarkImg.left += analogX * speed;
+					watermarkImg.top += analogY * speed;
+					watermarkImg.setCoords();
+					canvas.renderAll();
+				}
+				
+				// Panggil dirinya sendiri untuk frame berikutnya
+				analogAnim = requestAnimationFrame(analogStep);
+			}
+		}
+
+		function handlePointer(e) {
+			if (!isDragging) return;
+			e.preventDefault();
+
+			const rect = base.getBoundingClientRect();
+			const centerX = rect.left + rect.width / 2;
+			const centerY = rect.top + rect.height / 2;
+
+			// Posisi jari/mouse
+			const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+			const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+
+			// Hitung jarak dari tengah
+			let dx = clientX - centerX;
+			let dy = clientY - centerY;
+
+			// Hitung sudut dan batasi pergerakan agar tidak keluar lingkaran
+			const distance = Math.min(Math.sqrt(dx * dx + dy * dy), maxRadius);
+			const angle = Math.atan2(dy, dx);
+
+			// Posisi visual knob
+			const knobX = Math.cos(angle) * distance;
+			const knobY = Math.sin(angle) * distance;
+
+			knob.style.transform = `translate(${knobX}px, ${knobY}px)`;
+
+			// Normalisasi nilai (-1 sampai 1) untuk pergerakan watermark
+			analogX = knobX / maxRadius;
+			analogY = knobY / maxRadius;
+		}
+
+		// Event Listeners (Gunakan Pointer Events agar support Mouse & Touch sekalian)
+		knob.addEventListener('pointerdown', (e) => {
+			isDragging = true;
+			knob.style.transition = 'none'; // Matikan animasi saat ditarik agar responsif
+			if (!analogAnim) analogAnim = requestAnimationFrame(analogStep);
+		});
+
+		// Pasang event move & up di window agar tidak nge-bug kalau jari keluar dari area tombol
+		window.addEventListener('pointermove', handlePointer, { passive: false });
+
+		window.addEventListener('pointerup', () => {
+			isDragging = false;
+			analogX = 0;
+			analogY = 0;
+			
+			// Kembalikan ke titik 0,0 (tengah murni Flexbox)
+			knob.style.transition = 'transform 0.2s ease-out';
+			knob.style.transform = `translate(0px, 0px)`; 
+			
+			if (analogAnim) {
+				cancelAnimationFrame(analogAnim);
+				analogAnim = null;
+			}
+		});
+
+        function resetPos() {
+            if(watermarkImg) {
+                watermarkImg.set({ left: originalWidth/2, top: originalHeight/2 });
+                canvas.renderAll();
+            }
+        }
+
+		// --- LOGIKA POPUP & PILIH LOGO ---
+        const totalLogos = 4; // Deklarasi jumlah logo di folder list_logo
+        const logoModal = document.getElementById('logo-modal');
+        const logoGrid = document.getElementById('logo-grid');
+
+        function openLogoModal() {
+            logoGrid.innerHTML = ''; // Kosongkan grid sebelum diisi ulang
+            for (let i = 1; i <= totalLogos; i++) {
+                const imgPath = `assets/list_logo/${i}.png`; // Path folder logo
+                
+                // Buat tombol pembungkus
+                const btn = document.createElement('button');
+                //btn.className = "border-2 border-slate-200 dark:border-slate-700 rounded-xl p-3 hover:border-blue-500 dark:hover:border-blue-500 transition focus:outline-none bg-slate-50 dark:bg-slate-900 flex items-center justify-center aspect-square shadow-sm";
+				btn.className = "border-2 border-slate-200 dark:border-slate-700 rounded-xl p-3 hover:border-blue-500 dark:hover:border-blue-500 transition focus:outline-none bg-green-500 flex items-center justify-center aspect-square shadow-sm";
+                btn.onclick = () => {
+                    loadWatermark(imgPath);
+                    closeLogoModal();
+                };
+
+                // Buat elemen gambar untuk preview
+                const img = document.createElement('img');
+                img.src = imgPath;
+                img.className = "max-w-full max-h-full object-contain drop-shadow-sm";
+                img.alt = `Logo ${i}`;
+
+                // Tangani jika file tidak ditemukan
+                img.onerror = function() {
+					const fallback = document.createElement('span');
+					fallback.className = "text-[10px] text-slate-400 font-medium";
+					fallback.innerHTML = `Logo ${i}<br>Not Found`;
+					
+					this.replaceWith(fallback);
+				};
+
+                btn.appendChild(img);
+                logoGrid.appendChild(btn);
+            }
+            logoModal.classList.remove('hidden');
+        }
+
+        function closeLogoModal() {
+            logoModal.classList.add('hidden');
+        }
+
+        // --- LOGIKA TOMBOL RESET ---
+        function resetSize() {
+            if (watermarkImg) {
+                const defaultScale = 0.2; // Nilai default 20%
+                watermarkImg.scaleToWidth(originalWidth * defaultScale);
+                document.getElementById('slider-size').value = defaultScale; // Sinkronkan slider ke posisi awal
+                canvas.renderAll();
+            }
+        }
+
+        function resetRotation() {
+            if (watermarkImg) {
+                watermarkImg.set('angle', 0); // Kembalikan sudut ke 0 derajat
+                canvas.renderAll();
+            }
+        }
+
+        // Fungsi resetPos() biarkan yang lama, pastikan kodenya seperti ini:
+        function resetPos() {
+            if(watermarkImg) {
+                watermarkImg.set({ left: originalWidth/2, top: originalHeight/2 });
+                canvas.renderAll();
+            }
+        }
+		
+        // Sliders
+        document.getElementById('slider-size').oninput = (e) => {
+            if(watermarkImg) { watermarkImg.scaleToWidth(originalWidth * parseFloat(e.target.value)); canvas.renderAll(); }
+        };
+        document.getElementById('slider-opacity').oninput = (e) => {
+            if(watermarkImg) { watermarkImg.set('opacity', parseFloat(e.target.value)); canvas.renderAll(); }
+        };
+
+        // Download (Kembali ke ukuran asli)
+        document.getElementById('download').onclick = () => {
+			canvas.discardActiveObject();
+			canvas.setZoom(1); 
+			canvas.setWidth(originalWidth);
+			canvas.setHeight(originalHeight);
+			canvas.renderAll();
+
+			const link = document.createElement('a');
+			link.download = `result_${Date.now()}.png`;
+			link.href = canvas.toDataURL({ format: 'png', quality: 1 });
+			link.click();
+
+			// Kembalikan ke tampilan preview yang fit di layar
+			const wrapper = document.getElementById('wrapper');
+			const containerWidth = wrapper.clientWidth - 4; // Tetap kompensasi border
+			const scaleFactor = containerWidth / originalWidth;
+			
+			canvas.setZoom(scaleFactor);
+			canvas.setWidth(originalWidth * scaleFactor);
+			canvas.setHeight(originalHeight * scaleFactor);
+			canvas.renderAll();
+		};
+		
+		// --- SINKRONISASI KANVAS KE SLIDER UI ---
+		// Ter-trigger secara real-time saat objek di-resize langsung di kanvas
+		canvas.on('object:scaling', function(e) {
+			// Pastikan yang sedang di-scale adalah watermark
+			if (e.target && e.target === watermarkImg) {
+				// Dapatkan lebar watermark setelah di-scale (termasuk zoom dari wrapper)
+				// Karena canvas kita di-zoom (scaleFactor), kita butuh ukuran aslinya
+				const actualWidth = watermarkImg.getScaledWidth(); 
+				
+				// Hitung kembali rasionya terhadap lebar foto asli
+				let ratio = actualWidth / originalWidth;
+				
+				// Batasi nilai agar tidak melampaui min/max slider HTML (0.05 - 1)
+				if (ratio > 1) ratio = 1;
+				if (ratio < 0.05) ratio = 0.05;
+				
+				// Update posisi visual slider
+				document.getElementById('slider-size').value = ratio;
+			}
+		});
+
+
+		// --- LOGIKA CONFIG TRANSFORM (HANDLES) ---
+		function updateControls() {
+			if (!watermarkImg) return;
+			
+			const showCorner = document.getElementById('chk-corner').checked;
+			const showSide = document.getElementById('chk-side').checked;
+			const showRotate = document.getElementById('chk-rotate').checked;
+
+			// Atur visibilitas titik kontrol Fabric.js
+			watermarkImg.setControlsVisibility({
+				tl: showCorner, tr: showCorner, bl: showCorner, br: showCorner, 
+				mt: showSide, mb: showSide, ml: showSide, mr: showSide,         
+				mtr: showRotate                                                 
+			});
+
+			// Mengunci rasio skala agar tidak distorsi/gepeng saat ditarik
+			watermarkImg.set('lockUniScaling', !showSide);
+			
+			canvas.renderAll();
+		}
+
+		
+		// --- LOGIKA EXPAND / MINIMIZE CONFIG TRANSFORM ---
+		function toggleTransform() {
+			const wrapper = document.getElementById('transform-wrapper');
+			const chevron = document.getElementById('transform-chevron');
+			
+			if (wrapper.classList.contains('hidden')) {
+				wrapper.classList.remove('hidden');
+				chevron.classList.remove('-rotate-90');
+			} else {
+				wrapper.classList.add('hidden');
+				chevron.classList.add('-rotate-90');
+			}
+		}
+
+		function toggleAnalog() {
+			const wrapper = document.getElementById('analog-wrapper');
+			const chevron = document.getElementById('analog-chevron');
+			const knob = document.getElementById('joystick-knob'); 
+			
+			if (wrapper.classList.contains('hidden')) {
+				wrapper.classList.remove('hidden');
+				chevron.classList.remove('-rotate-90'); 
+				
+				// PERBAIKAN: Kosongkan inline transform agar class Tailwind kembali mengambil alih
+				knob.style.transition = 'none'; 
+				knob.style.transform = ''; // <-- Ubah menjadi string kosong
+				
+			} else {
+				wrapper.classList.add('hidden');
+				chevron.classList.add('-rotate-90'); 
+			}
+		}
+    </script>
+</body>
+</html>

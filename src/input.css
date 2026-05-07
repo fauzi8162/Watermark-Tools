@@ -1,0 +1,8 @@
+@import "tailwindcss";
+
+@theme {
+  /* Jika ingin custom warna atau font, tambahkan di sini */
+}
+
+/* Ini adalah cara v4 menangani selector class 'dark' */
+@variant dark (&:where(.dark, .dark *));
