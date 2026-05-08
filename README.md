@@ -15,6 +15,7 @@ Simple web-based watermark editor built with HTML5 Canvas, Fabric.js, and Tailwi
 - Mobile friendly
 - Dark mode
 - Export high-quality PNG
+- Compressed level download
 
 ---
 
