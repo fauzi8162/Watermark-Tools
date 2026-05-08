@@ -40,9 +40,18 @@
             <canvas id="c"></canvas>
         </div>
 
-		<button id="download" disabled class="w-full py-3 bg-green-600 text-white font-bold rounded-xl shadow-lg opacity-40 cursor-not-allowed transition-all">
-                Download Hasil
-        </button>
+		<div class="flex gap-2">
+			<button id="download" disabled class="flex-1 py-3 bg-green-600 text-white font-bold rounded-xl shadow-lg opacity-40 cursor-not-allowed transition-all">
+				Download Hasil
+			</button>
+			<div class="flex flex-col items-center justify-center px-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm">
+				<span class="text-[8px] font-bold uppercase mb-1">Compress</span>
+				<label class="relative inline-flex items-center cursor-pointer">
+					<input type="checkbox" id="chk-compress" checked class="sr-only peer">
+					<div class="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+				</label>
+			</div>
+		</div>
 			
         <div class="grid grid-cols-3 gap-2">
             <label class="flex flex-col items-center justify-center p-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl cursor-pointer transition shadow-md text-center">
@@ -84,6 +93,18 @@
                     <button onclick="resetPos()" class="text-[9px] py-1.5 bg-slate-100 dark:bg-slate-700 dark:text-slate-300 font-bold uppercase rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition shadow-sm">Tengah</button>
                 </div>
 				
+				<!--SETTINGS COMPRESSION LEVEL--!>
+				<div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-700">
+					<p class="text-[10px] font-bold dark:text-slate-300 uppercase tracking-wider">Compression Level</p>
+					<select id="select-compress" class="p-2 bg-slate-100 dark:bg-slate-700 rounded-lg text-[10px] font-bold uppercase outline-none border-r-4 border-transparent cursor-pointer min-w-[160px] text-right">
+						<option value="1">Uncompression/JPG</option>
+						<option value="0.95">Less (Kualitas Tinggi)</option>
+						<option value="0.8">Medium (Seimbang)</option>
+						<option value="0.5" selected>High (Ukuran Kecil)</option>
+						<option value="0.2">Very High (Sangat Kecil)</option>
+					</select>
+				</div>
+
 				<!--SETTINGS TRANSFORM--!>
 				<div class="w-full">
 					<button onclick="toggleTransform()" class="w-full flex justify-between items-center focus:outline-none mb-3 group">
@@ -150,6 +171,18 @@
         </div>
     </div>
 	
+	
+	<div id="master-overlay" class="fixed inset-0 z-[9999] bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center cursor-pointer transition-opacity duration-300">
+    <div class="bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-2xl border-2 border-dashed border-blue-500 text-center mx-6">
+        <div class="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+            <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+        </div>
+        <p class="text-slate-700 dark:text-slate-200 font-bold">Mulai Edit Foto</p>
+        <p class="text-slate-400 text-xs mt-1 italic">Ketuk di mana saja untuk upload</p>
+    </div>
+</div>
+
+	
     <script>
         const canvas = new fabric.Canvas('c');
         let watermarkImg = null;
@@ -159,6 +192,10 @@
         document.getElementById('dark-toggle').onclick = () => {
             document.documentElement.classList.toggle('dark');
         };
+		
+		document.getElementById('master-overlay').onclick = function() {
+			document.getElementById('upload-photo').click();
+		};
 
         // Responsiveness & Upload Foto
         document.getElementById('upload-photo').onchange = function(e) {
@@ -170,7 +207,14 @@
                 imgObj.onload = function() {
 					originalWidth = imgObj.width;
 					originalHeight = imgObj.height;
-
+					
+					// --- BAGIAN PENTING: MUSNAHKAN OVERLAY ---
+					const overlay = document.getElementById('master-overlay');
+					if (overlay) {
+						overlay.style.opacity = '0';
+						setTimeout(() => overlay.remove(), 300); // Hapus permanen setelah transisi selesai
+					}
+					
 					// Hitung skala agar fit di layar device
 					const wrapper = document.getElementById('wrapper');
 					// Kurangi sedikit width (misal 4px) untuk kompensasi border dari wrapper
@@ -419,14 +463,24 @@
 			canvas.setHeight(originalHeight);
 			canvas.renderAll();
 
+			const isCompressed = document.getElementById('chk-compress').checked;
+			const qualityValue = parseFloat(document.getElementById('select-compress').value);
+			
+			// Jika compress aktif, gunakan format jpeg agar quality slider berfungsi
+			const format = isCompressed ? 'jpeg' : 'png';
+			const quality = isCompressed ? qualityValue : 1;
+			const extension = isCompressed ? 'jpg' : 'png';
+
 			const link = document.createElement('a');
-			link.download = `result_${Date.now()}.png`;
-			link.href = canvas.toDataURL({ format: 'png', quality: 1 });
+			link.download = `result_${Date.now()}.${extension}`;
+			link.href = canvas.toDataURL({ 
+				format: format, 
+				quality: quality 
+			});
 			link.click();
 
-			// Kembalikan ke tampilan preview yang fit di layar
 			const wrapper = document.getElementById('wrapper');
-			const containerWidth = wrapper.clientWidth - 4; // Tetap kompensasi border
+			const containerWidth = wrapper.clientWidth - 4;
 			const scaleFactor = containerWidth / originalWidth;
 			
 			canvas.setZoom(scaleFactor);
